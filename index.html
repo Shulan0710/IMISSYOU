@@ -6,18 +6,50 @@
 <title>树懒的记忆回廊</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;}
-body{min-height:100vh;background:linear-gradient(180deg,#3a2e22 0%,#241c14 100%);overflow:hidden;color:#f0e6d6;}
-.corridor{position:relative;width:100vw;height:100vh;perspective:800px;}
-.wall{position:absolute;width:50vw;height:100vh;background:repeating-linear-gradient(90deg,#5a4733 0px,#5a4733 48px,#4a3927 50px);opacity:0.9;}
-.wall.left{left:0;transform:rotateY(25deg) translateX(-10vw);}
-.wall.right{right:0;transform:rotateY(-25deg) translateX(10vw);}
-.lamp{position:absolute;top:20vh;width:12px;height:12px;border-radius:50%;background:#ffdd99;box-shadow:0 0 30px 12px #ffc870,0 0 60px 25px rgba(255,190,100,0.4);transition:all 0.4s ease;}
-.lamp.off{background:#443322;box-shadow:none;}
-.lamp:nth-child(1){left:12vw;}
-.lamp:nth-child(2){left:32vw;}
-.lamp:nth-child(3){right:32vw;}
-.lamp:nth-child(4){right:12vw;}
-.overlay-rule{position:fixed;inset:0;background:rgba(20,14,8,0.85);z-index:99;display:flex;align-items:center;justify-content:center;}
+body{min-height:100vh;overflow:hidden;color:#f0e6d6;background:#19120b;}
+/* 升级透视回廊 */
+.corridor{position:relative;width:100vw;height:100vh;perspective:1200px;overflow:hidden;}
+/* 左侧木墙 */
+.wall{position:absolute;width:50vw;height:100vh;top:0;}
+.wall.left{left:0;transform:rotateY(28deg) translateX(-8vw);
+background: repeating-linear-gradient(90deg,
+#4b3826 0px, #4b3826 42px,
+#3c2d1f 44px, #3c2d1f 48px
+);
+}
+.wall.right{right:0;transform:rotateY(-28deg) translateX(8vw);
+background: repeating-linear-gradient(90deg,
+#4b3826 0px, #4b3826 42px,
+#3c2d1f 44px, #3c2d1f 48px
+);
+}
+/* 木板铆钉装饰 */
+.wall::before{
+content:"";position:absolute;top:0;left:0;width:100%;height:100%;
+background-image: radial-gradient(#2c2014 4px, transparent 4px);
+background-size:80px 120px;opacity:0.35;
+}
+/* 地面透视木板 */
+.floor{position:absolute;bottom:0;left:10vw;right:10vw;height:45vh;
+transform:rotateX(65deg);transform-origin:center bottom;
+background:repeating-linear-gradient(90deg,#3a2b1e 0,#3a2b1e 60px,#2e2217 62px,#2e2217 66px);
+}
+/* 远处暗门 */
+.door-far{position:absolute;top:22vh;left:50%;transform:translateX(-50%);
+width:140px;height:220px;background:#140e09;border:3px solid #2c2014;
+border-radius:6px;opacity:0.6;
+}
+/* 壁灯 */
+.lamp{position:absolute;top:20vh;width:14px;height:14px;border-radius:50%;
+background:#ffdd99;box-shadow:0 0 40px 16px #ffc870,0 0 80px 30px rgba(255,190,100,0.35);
+transition:all 0.5s ease;z-index:2;
+}
+.lamp.off{background:#382b1d;box-shadow:none;}
+.lamp:nth-child(1){left:14vw;}
+.lamp:nth-child(2){left:34vw;}
+.lamp:nth-child(3){right:34vw;}
+.lamp:nth-child(4){right:14vw;}
+.overlay-rule{position:fixed;inset:0;background:rgba(20,14,8,0.88);z-index:99;display:flex;align-items:center;justify-content:center;}
 .rule-box{background:#3b2e20;border:2px solid #806445;padding:28px 32px;border-radius:14px;max-width:520px;margin:0 20px;box-shadow:0 0 25px #1a130c;}
 .rule-box h2{margin-bottom:16px;color:#ffe2b8;text-align:center;}
 .rule-box p{line-height:1.7;margin-bottom:10px;font-size:16px;}
@@ -43,7 +75,7 @@ body{min-height:100vh;background:linear-gradient(180deg,#3a2e22 0%,#241c14 100%)
 .quote-box{background:#3b2e20;border:2px solid #806445;padding:30px 32px;border-radius:14px;text-align:center;max-width:500px;margin:0 20px;}
 .quote-text{font-size:20px;line-height:1.8;color:#ffe2b8;}
 .quote-close{margin-top:22px;padding:11px 24px;background:#70573c;border:none;color:#fff;border-radius:10px;font-size:16px;cursor:pointer;}
-  .quote-close:hover{background:#8c6d4b;}
+.quote-close:hover{background:#8c6d4b;}
 .flash-symbol{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:60px;z-index:5;pointer-events:none;opacity:0;transition:opacity 0.08s;}
 .flash-symbol.illusion{filter:blur(3px);}
 .game-tip{position:fixed;bottom:110px;left:50%;transform:translateX(-50%);z-index:10;font-size:18px;color:#ffe2b8;}
@@ -53,12 +85,13 @@ body{min-height:100vh;background:linear-gradient(180deg,#3a2e22 0%,#241c14 100%)
 <div class="corridor">
     <div class="wall left"></div>
     <div class="wall right"></div>
+    <div class="floor"></div>
+    <div class="door-far"></div>
     <div class="lamp" id="lamp1"></div>
     <div class="lamp" id="lamp2"></div>
     <div class="lamp" id="lamp3"></div>
     <div class="lamp" id="lamp4"></div>
 </div>
-
 <!-- 首次进入游戏规则弹窗 -->
 <div class="overlay-rule" id="ruleOverlay">
     <div class="rule-box">
@@ -101,6 +134,85 @@ body{min-height:100vh;background:linear-gradient(180deg,#3a2e22 0%,#241c14 100%)
 <div class="flash-symbol" id="flashSymbol"></div>
 
 <script>
+// 音效生成器（纯JS内置，无需外部音频文件）
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+// 普通点击音效
+function playClickSound(){
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = 600;
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.08);
+}
+
+// 答对音效
+function playCorrectSound(){
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.15);
+}
+
+// 答错/幻觉音效
+function playWrongSound(){
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = 'triangle';
+    osc.frequency.value = 220;
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.25);
+}
+  // 小关通关音效
+function playLevelClearSound(){
+    const osc1 = audioCtx.createOscillator();
+    const osc2 = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(523, audioCtx.currentTime);
+    osc1.frequency.setValueAtTime(659, audioCtx.currentTime+0.12);
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(784, audioCtx.currentTime+0.24);
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.45);
+    osc1.start();
+    osc1.stop(audioCtx.currentTime+0.45);
+    osc2.start(audioCtx.currentTime+0.24);
+    osc2.stop(audioCtx.currentTime+0.45);
+}
+
+// 弹窗提示音效
+function playPopupSound(){
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = 440;
+    gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.2);
+}
+
 // 游戏基础数据
 let gameData = {
     bigLevel: 1,
@@ -142,19 +254,18 @@ const questionPool = [
         correct: 2
     }
 ];
-  // 搞怪温柔语录库（带颜文字）
+// 搞怪温柔语录库（带颜文字）
 const quotePool = [
     "别卷啦，记忆摸鱼也能过关(✧ω✧)",
-    "树懒说你超棒，多歇会儿也没关系(≖▽≖)",
-    "回廊偷偷给你留了小饼干，通关就啃(๑•̀ㅂ•́)و✧",
-    "就算记错也没事，树懒不会怪你哒(๑´ㅂ`๑)",
+    "树懒说你超棒，多歇一会也没关系(≖▽≖)",
+    "回廊偷偷藏了小饼干，通关就可以啃(๑•̀ㅂ•́)و✧",
+    "就算记错也没关系，树懒不会怪你的(๑´ㅂ`๑)",
     "慢慢来，回廊的灯光会陪着你(˃̵ᴗ˂̵)و",
-    "坚持住！离彩蛋更近一步啦(≧∇≦)ﾉ",
+    "继续加油，彩蛋就在前方(≧∇≦)ﾉ",
     "累了就深呼吸，不用强迫自己记住全部(｡•́ω•̀｡)",
-    "哇，你居然走到这里！树懒狠狠夸你(๑>ᴗ<๑)"
+    "哇，你已经走到这里啦！树懒狠狠夸你(๑>ᴗ<๑)"
 ];
-
-// DOM元素
+  // DOM元素
 const ruleOverlay = document.getElementById('ruleOverlay');
 const questionPopup = document.getElementById('questionPopup');
 const quotePopup = document.getElementById('quotePopup');
@@ -169,225 +280,217 @@ const lamp1 = document.getElementById('lamp1');
 const lamp2 = document.getElementById('lamp2');
 const lamp3 = document.getElementById('lamp3');
 const lamp4 = document.getElementById('lamp4');
+const h1 = document.getElementById('h1');
+const h2 = document.getElementById('h2');
+const h3 = document.getElementById('h3');
 
-// 关闭初始规则弹窗
-function closeRule() {
-    ruleOverlay.style.display = 'none';
-    startRound();
-}
-
-// 关闭语录弹窗
-function closeQuote() {
-    quotePopup.style.display = 'none';
-    nextSmallLevel();
-}
-
-// 更新页面等级文字
-function updateLevelUI() {
-    levelText.innerText = `大级：${gameData.bigLevel}｜小关：${gameData.smallLevel}`;
-}
-
-// 更新生命显示
-function updateLifeUI() {
-    const hearts = [document.getElementById('h1'), document.getElementById('h2'), document.getElementById('h3')];
-    hearts.forEach((h, idx) => {
-        if(idx < gameData.lives) h.classList.remove('lost');
-        else h.classList.add('lost');
-    })
-}
-
-// 更新壁灯亮度（随大级变化）
-function updateLamp() {
-    const lamps = [lamp1, lamp2, lamp3, lamp4];
-    const lampCount = Math.min(gameData.bigLevel,4);
-    lamps.forEach((lamp,idx)=>{
-        if(idx < lampCount) lamp.classList.remove('off');
-        else lamp.classList.add('off');
-    })
-}
-
-// 随机取数组元素
+// 随机选取数组元素
 function randomPick(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// 开始一轮游戏
+// 延时工具
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 更新左上角等级文字
+function updateLevelUI() {
+    levelText.innerText = `大级：${gameData.bigLevel}｜小关：${gameData.smallLevel}`;
+}
+
+// 更新爱心生命值UI
+function updateLifeUI() {
+    h1.className = gameData.lives >= 1 ? 'heart' : 'heart lost';
+    h2.className = gameData.lives >= 2 ? 'heart' : 'heart lost';
+    h3.className = gameData.lives >= 3 ? 'heart' : 'heart lost';
+}
+
+// 更新壁灯状态
+function updateLamp() {
+    const lamps = [lamp1, lamp2, lamp3, lamp4];
+    for(let i = 0; i < lamps.length; i++){
+        if(i < gameData.bigLevel){
+            lamps[i].classList.remove('off');
+        }else{
+            lamps[i].classList.add('off');
+        }
+      // 开启一轮游戏
 async function startRound() {
     gameData.isPlaying = true;
     gameData.playerClickOrder = [];
     symbolPanel.innerHTML = '';
-    gameTip.innerText = "仔细观察符号...";
+    gameTip.textContent = "仔细观察记住符号";
 
-    // 本回合真实符号数量：随大级增加
-    const realCount = 2 + Math.floor(gameData.bigLevel / 2);
-    // 幻觉数量
-    const illusionCount = Math.floor(gameData.bigLevel / 2);
+    // 根据大级设置难度参数
+    let realCount, illusionCount, showTime;
+    if(gameData.bigLevel === 1){
+        realCount = 2; illusionCount = 0; showTime = 1200;
+    }else if(gameData.bigLevel === 2){
+        realCount = 3; illusionCount = 0; showTime = 1100;
+    }else if(gameData.bigLevel === 3){
+        realCount = 3; illusionCount = 1; showTime = 1000;
+    }else if(gameData.bigLevel === 4){
+        realCount = 4; illusionCount = 1; showTime = 900;
+    }else{
+        realCount = 4; illusionCount = 2; showTime = 800;
+    }
 
+    // 随机挑选真实符号，不重复
     gameData.realSymbols = [];
-    gameData.illusionSymbols = [];
-    // 随机选真实符号
+    const tempSym = [...symbolList];
     for(let i=0;i<realCount;i++){
-        let s = randomPick(symbolList);
-        while(gameData.realSymbols.includes(s)) s = randomPick(symbolList);
-        gameData.realSymbols.push(s);
+        const idx = Math.floor(Math.random() * tempSym.length);
+        gameData.realSymbols.push(tempSym.splice(idx,1)[0]);
     }
     // 幻觉符号
+    gameData.illusionSymbols = [];
+    const poolIllusion = symbolList.filter(s=>!gameData.realSymbols.includes(s));
     for(let i=0;i<illusionCount;i++){
-        let s = randomPick(symbolList);
-        while(gameData.realSymbols.includes(s) || gameData.illusionSymbols.includes(s)) s = randomPick(symbolList);
-        gameData.illusionSymbols.push(s);
+        gameData.illusionSymbols.push(randomPick(poolIllusion));
     }
-      // 混合真实符号和幻觉符号，打乱播放顺序
-    let sequence = [];
-    gameData.realSymbols.forEach(s=> sequence.push({sym:s,type:"real"}));
-    gameData.illusionSymbols.forEach(s=> sequence.push({sym:s,type:"illusion"}));
-    // 打乱播放序列
-    sequence.sort(()=> Math.random()-0.5);
 
-    // 依次播放所有符号
-    for(let item of sequence){
-        flashSymbol.innerText = item.sym;
+    // 依次播放真实符号
+    for(let sym of gameData.realSymbols){
+        flashSymbol.textContent = sym;
         flashSymbol.classList.remove('illusion');
-        flashSymbol.style.opacity = "1";
-        if(item.type === "illusion"){
-            flashSymbol.classList.add('illusion');
-            await sleep(100); //幻觉只闪0.1秒
-        }else{
-            await sleep(700); //真实符号停留0.7秒
-        }
-        flashSymbol.style.opacity = "0";
-        await sleep(150);
+        flashSymbol.style.opacity = 1;
+        await sleep(showTime);
+        flashSymbol.style.opacity = 0;
+        await sleep(350);
+    }
+    // 播放幻觉符号
+    for(let sym of gameData.illusionSymbols){
+        flashSymbol.textContent = sym;
+        flashSymbol.classList.add('illusion');
+        flashSymbol.style.opacity = 1;
+        await sleep(showTime * 0.45);
+        flashSymbol.style.opacity = 0;
+        await sleep(350);
     }
 
-    gameTip.innerText = "按出现顺序，点击真实符号！不要点幻觉！";
-    gameData.isPlaying = false;
-
-    // 把所有真实+幻觉符号全部放到面板，打乱
-    let allSym = [...gameData.realSymbols, ...gameData.illusionSymbols];
-    allSym.sort(()=> Math.random()-0.5);
-    allSym.forEach(sym=>{
+    gameTip.textContent = "按顺序点击刚才出现的真实符号！";
+    // 生成全部选项按钮
+    const allOptions = [...new Set([...gameData.realSymbols,...gameData.illusionSymbols])];
+    // 打乱顺序
+    allOptions.sort(()=>Math.random()-0.5);
+    for(let s of allOptions){
         const btn = document.createElement('button');
-        btn.className = "symbol-btn";
-        btn.innerText = sym;
-        btn.onclick = ()=>clickSymbol(sym);
+        btn.className = 'symbol-btn';
+        btn.innerText = s;
+        btn.onclick = ()=>clickSymbol(s,btn);
         symbolPanel.appendChild(btn);
-    })
+    }
+    gameData.isPlaying = false;
 }
 
-// 延时工具
-function sleep(ms){
-    return new Promise(resolve=>setTimeout(resolve,ms));
-}
-
-// 点击符号
-function clickSymbol(sym){
+// 点击符号按钮
+async function clickSymbol(symbol, btn){
     if(gameData.isPlaying) return;
-    // 如果点到幻觉，直接失败
-    if(gameData.illusionSymbols.includes(sym)){
-        gameTip.innerText = "❌ 你点到幻觉符号了！";
-        loseLife();
-        return;
-    }
-    gameData.playerClickOrder.push(sym);
-    // 判断当前点击的符号是否等于真实序列的对应位置
-    const idx = gameData.playerClickOrder.length -1;
-    if(gameData.realSymbols[idx] !== sym){
-        gameTip.innerText = "❌ 顺序错啦！";
-        loseLife();
-        return;
-    }
-    // 标记按钮正确
-    const btns = symbolPanel.querySelectorAll('.symbol-btn');
-    btns.forEach(b=>{if(b.innerText === sym) b.classList.add('correct');})
-    gameTip.innerText = `✅ 选对了 ${idx+1}/${gameData.realSymbols.length}`;
-
-    // 判断全部选完
-    if(gameData.playerClickOrder.length === gameData.realSymbols.length){
-        gameTip.innerText = "🎉 本小关通关！";
-        setTimeout(nextSmallLevel, 800);
-    }
-}
-
-// 失去生命
-function loseLife(){
-    gameData.lives -=1;
-    updateLifeUI();
-    // 生命耗尽，退回当前大级第1小关
-    if(gameData.lives <= 0){
-        gameTip.innerText = "💔 生命耗尽！退回当前大级第1小关";
-        gameData.smallLevel = 1;
-        gameData.lives = 3;
-        updateLevelUI();
-        updateLifeUI();
-        setTimeout(startRound, 1200);
-    }else{
-        setTimeout(startRound,1000);
-    }
-}
-
-// 下一小关
-function nextSmallLevel(){
-    gameData.smallLevel +=1;
-    // 一个大级有3小关
-    if(gameData.smallLevel >3){
-        // 大关卡全部通关，触发50%彩蛋
-        gameData.smallLevel =1;
-        gameData.bigLevel +=1;
-        updateLamp();
-        updateLevelUI();
-        // 50%概率问答，50%暖心语录
-        if(Math.random() >0.5){
-            showQuestion();
-        }else{
-            showQuote();
-        }
-    }else{
-        updateLevelUI();
-        setTimeout(startRound,600);
-    }
-}
-  // 弹出问答题
-function showQuestion(){
-    const q = randomPick(questionPool);
-    qTitle.innerText = q.q;
-    qOptions.innerHTML = "";
-    q. options.forEach((opt, idx)=>{
-        const btn = document.createElement("button");
-        btn.className = "q-option";
-        btn.innerText = opt;
-        btn.onclick = ()=>{
-            if(idx === q.correct){
-                gameTip.innerText = "✅回答正确！获得半条额外生命！";
-                gameData.extraLife += 0.5;
-                // 满1条就补生命
-                if(gameData.extraLife >=1){
-                    gameData.extraLife -=1;
-                    if(gameData.lives <3) gameData.lives +=1;
-                    updateLifeUI();
+    playClickSound();
+    const targetIndex = gameData.playerClickOrder.length;
+    if(gameData.realSymbols[targetIndex] === symbol){
+        playCorrectSound();
+        btn.classList.add('correct');
+        gameData.playerClickOrder.push(symbol);
+        // 判断本轮全部完成
+        if(gameData.playerClickOrder.length === gameData.realSymbols.length){
+            playLevelClearSound();
+            gameTip.textContent = "🎉本小关通关！";
+            await sleep(1200);
+            gameData.smallLevel +=1;
+            // 3小关为一个大级，触发彩蛋弹窗
+            if(gameData.smallLevel >3){
+                gameData.smallLevel = 1;
+                gameData.bigLevel +=1;
+                updateLamp();
+                updateLevelUI();
+                // 随机问答或者语录
+                playPopupSound();
+                if(Math.random()>0.5){
+                    openQuestionPopup();
+                }else{
+                    openQuotePopup();
                 }
             }else{
-                gameTip.innerText = "❌答错咯，扣1条生命";
-                loseLife();
+                updateLevelUI();
+                await startRound();
             }
-            questionPopup.style.display = "none";
-            setTimeout(startRound, 800);
         }
-        qOptions.appendChild(btn);
-    })
-    questionPopup.style.display = "flex";
+    }else{
+        playWrongSound();
+        btn.classList.add('wrong');
+        gameData.lives -=1;
+        updateLifeUI();
+        gameTip.textContent = "❌选错了！";
+        await sleep(1000);
+        if(gameData.lives <=0){
+            gameTip.textContent = "生命耗尽，退回本大级第1小关";
+            gameData.lives = 3;
+            gameData.smallLevel = 1;
+            updateLifeUI();
+            updateLevelUI();
+            await sleep(1500);
+        }
+        await startRound();
+    }
+}
+      // 打开问答弹窗
+function openQuestionPopup() {
+    const q = randomPick(questionPool);
+    qTitle.innerText = q.q;
+    qOptions.innerHTML = '';
+    for(let i=0;i<q.options.length;i++){
+        const optBtn = document.createElement('button');
+        optBtn.className = 'q-option';
+        optBtn.innerText = q.options[i];
+        optBtn.onclick = ()=>{
+            playClickSound();
+            if(i === q.correct){
+                playCorrectSound();
+                gameTip.textContent = "✅回答正确！";
+            }else{
+                playWrongSound();
+                gameTip.textContent = "❌答案不对哦";
+            }
+            questionPopup.style.display = 'none';
+            updateLevelUI();
+            setTimeout(startRound,1200);
+        }
+        qOptions.appendChild(optBtn);
+    }
+    questionPopup.style.display = 'flex';
 }
 
-// 弹出暖心语录
-function showQuote(){
+// 打开暖心语录弹窗
+function openQuotePopup() {
     const text = randomPick(quotePool);
     quoteText.innerText = text;
-    quotePopup.style.display = "flex";
+    quotePopup.style.display = 'flex';
 }
 
-// 初始化
+// 关闭语录弹窗
+async function closeQuote() {
+    playClickSound();
+    quotePopup.style.display = 'none';
+    await sleep(400);
+    await startRound();
+}
+
+// 页面初始化
 updateLevelUI();
 updateLifeUI();
 updateLamp();
 </script>
 </body>
 </html>
+    }
+}
+
+// 关闭规则弹窗，开始游戏
+async function closeRule() {
+    playClickSound();
+    ruleOverlay.style.display = 'none';
+    await sleep(600);
+    await startRound();
+}
