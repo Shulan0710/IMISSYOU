@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>树懒的记忆回廊</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;}
+body{min-height:100vh;background:linear-gradient(180deg,#3a2e22 0%,#241c14 100%);overflow:hidden;color:#f0e6d6;}
+.corridor{position:relative;width:100vw;height:100vh;perspective:800px;}
+.wall{position:absolute;width:50vw;height:100vh;background:repeating-linear-gradient(90deg,#5a4733 0px,#5a4733 48px,#4a3927 50px);opacity:0.9;}
+.wall.left{left:0;transform:rotateY(25deg) translateX(-10vw);}
+.wall.right{right:0;transform:rotateY(-25deg) translateX(10vw);}
+.lamp{position:absolute;top:20vh;width:12px;height:12px;border-radius:50%;background:#ffdd99;box-shadow:0 0 30px 12px #ffc870,0 0 60px 25px rgba(255,190,100,0.4);transition:all 0.4s ease;}
+.lamp.off{background:#443322;box-shadow:none;}
+.lamp:nth-child(1){left:12vw;}
+.lamp:nth-child(2){left:32vw;}
+.lamp:nth-child(3){right:32vw;}
+.lamp:nth-child(4){right:12vw;}
+.overlay-rule{position:fixed;inset:0;background:rgba(20,14,8,0.85);z-index:99;display:flex;align-items:center;justify-content:center;}
+.rule-box{background:#3b2e20;border:2px solid #806445;padding:28px 32px;border-radius:14px;max-width:520px;margin:0 20px;box-shadow:0 0 25px #1a130c;}
+.rule-box h2{margin-bottom:16px;color:#ffe2b8;text-align:center;}
+.rule-box p{line-height:1.7;margin-bottom:10px;font-size:16px;}
+.rule-close{margin-top:20px;width:100%;padding:12px;background:#70573c;border:none;color:#fff;border-radius:10px;font-size:17px;cursor:pointer;transition:0.2s;}
+.rule-close:hover{background:#8c6d4b;}
+.panel{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);z-index:10;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;max-width:90vw;}
+.symbol-btn{width:70px;height:70px;border-radius:12px;font-size:28px;border:2px solid #c9a87c;background:#483726;color:#ffe9c9;cursor:pointer;transition:0.25s;display:flex;align-items:center;justify-content:center;}
+.symbol-btn:hover{background:#634c34;transform:scale(1.05);}
+.symbol-btn.correct{background:#385938;border-color:#76b876;box-shadow:0 0 12px #57b957;}
+.symbol-btn.wrong{background:#602828;border-color:#d46868;animation:shake 0.3s;}
+@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
+.info-bar{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:10;text-align:center;}
+.level-text{font-size:22px;margin-bottom:8px;color:#ffe2b8;}
+.life-wrap{display:flex;gap:8px;justify-content:center;}
+.heart{width:24px;height:24px;color:#ffb870;}
+.heart.lost{color:#443322;}
+.question-popup{position:fixed;inset:0;background:rgba(15,10,6,0.88);z-index:90;display:none;align-items:center;justify-content:center;}
+.q-box{background:#3b2e20;border:2px solid #806445;padding:26px 30px;border-radius:14px;max-width:540px;margin:0 20px;}
+.q-box h3{margin-bottom:16px;color:#ffe2b8;text-align:center;}
+.q-option{width:100%;padding:13px;margin:8px 0;background:#483726;border:none;color:#f0e6d6;border-radius:10px;font-size:16px;cursor:pointer;text-align:left;transition:0.2s;}
+.q-option:hover{background:#634c34;}
+.quote-popup{position:fixed;inset:0;background:rgba(15,10,6,0.85);z-index:90;display:none;align-items:center;justify-content:center;}
+.quote-box{background:#3b2e20;border:2px solid #806445;padding:30px 32px;border-radius:14px;text-align:center;max-width:500px;margin:0 20px;}
+.quote-text{font-size:20px;line-height:1.8;color:#ffe2b8;}
+.quote-close{margin-top:22px;padding:11px 24px;background:#70573c;border:none;color:#fff;border-radius:10px;font-size:16px;cursor:pointer;}
+  .quote-close:hover{background:#8c6d4b;}
+.flash-symbol{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:60px;z-index:5;pointer-events:none;opacity:0;transition:opacity 0.08s;}
+.flash-symbol.illusion{filter:blur(3px);}
+.game-tip{position:fixed;bottom:110px;left:50%;transform:translateX(-50%);z-index:10;font-size:18px;color:#ffe2b8;}
+</style>
+</head>
+<body>
+<div class="corridor">
+    <div class="wall left"></div>
+    <div class="wall right"></div>
+    <div class="lamp" id="lamp1"></div>
+    <div class="lamp" id="lamp2"></div>
+    <div class="lamp" id="lamp3"></div>
+    <div class="lamp" id="lamp4"></div>
+</div>
+
+<!-- 首次进入游戏规则弹窗 -->
+<div class="overlay-rule" id="ruleOverlay">
+    <div class="rule-box">
+        <h2>树懒的记忆回廊 · 游戏规则</h2>
+        <p>1. 记住画面里<strong>真实出现</strong>的符号，一闪而过的是幻觉，不要点！</p >
+        <p>2. 按照符号出现的先后顺序点击按钮。</p >
+        <p>3. 你一共有3条生命，生命耗尽会退回当前大级的第1小关。</p >
+        <p>4. 通关一整个大关卡后，会随机触发彩蛋，有可能是趣味小问答，也可能是暖心语录。</p >
+        <button class="rule-close" onclick="closeRule()">开始探索回廊</button>
+    </div>
+</div>
+
+<!-- 问答弹窗 -->
+<div class="question-popup" id="questionPopup">
+    <div class="q-box">
+        <h3 id="qTitle"></h3>
+        <div id="qOptions"></div>
+    </div>
+</div>
+
+<!-- 暖心语录弹窗 -->
+<div class="quote-popup" id="quotePopup">
+    <div class="quote-box">
+        <div class="quote-text" id="quoteText"></div>
+        <button class="quote-close" onclick="closeQuote()">继续往前走</button>
+    </div>
+</div>
+
+<div class="info-bar">
+    <div class="level-text" id="levelText">大级：1｜小关：1</div>
+    <div class="life-wrap">
+        <span class="heart" id="h1">♥</span>
+        <span class="heart" id="h2">♥</span>
+        <span class="heart" id="h3">♥</span>
+    </div>
+</div>
+
+<div class="game-tip" id="gameTip">准备开始</div>
+<div class="panel" id="symbolPanel"></div>
+<div class="flash-symbol" id="flashSymbol"></div>
+
+<script>
+// 游戏基础数据
+let gameData = {
+    bigLevel: 1,
+    smallLevel: 1,
+    lives: 3,
+    extraLife: 0,
+    realSymbols: [],
+    illusionSymbols: [],
+    playerClickOrder: [],
+    isPlaying: false
+};
+// 符号库
+const symbolList = ['★','◆','▲','●','■','◈','✦','⬟'];
+// 专属问答题库
+const questionPool = [
+    {
+        q: "树懒本人最喜欢做的事情？",
+        options: ["A.听音乐", "B.睡懒觉", "C.做PPT", "D.出去吃饭"],
+        correct: 1
+    },
+    {
+        q: "树懒的星座是？",
+        options: ["A.金牛座", "B.双子座", "C.巨蟹座", "D.狮子座"],
+        correct: 1
+    },
+    {
+        q: "树懒一般睡觉时间段？",
+        options: ["A.凌晨2点~5点", "B.9点~12点", "C.中午12点~15点", "D.下午14点~17点"],
+        correct: 1
+    },
+    {
+        q: "如果树懒生气了，你应该怎么做？",
+        options: ["A.不停凑上去哄", "B.及时道歉，并给一定的空间让他自己想想", "C.假装没看见", "D.拉去吃好吃的"],
+        correct: 1
+    },
+    {
+        q: "树懒喜欢的歌手是？",
+        options: ["A.邓紫棋", "B.陈绮贞", "C.许嵩", "D.薛之谦"],
+        correct: 2
+    }
+];
+  // 搞怪温柔语录库（带颜文字）
+const quotePool = [
+    "别卷啦，记忆摸鱼也能过关(✧ω✧)",
+    "树懒说你超棒，多歇会儿也没关系(≖▽≖)",
+    "回廊偷偷给你留了小饼干，通关就啃(๑•̀ㅂ•́)و✧",
+    "就算记错也没事，树懒不会怪你哒(๑´ㅂ`๑)",
+    "慢慢来，回廊的灯光会陪着你(˃̵ᴗ˂̵)و",
+    "坚持住！离彩蛋更近一步啦(≧∇≦)ﾉ",
+    "累了就深呼吸，不用强迫自己记住全部(｡•́ω•̀｡)",
+    "哇，你居然走到这里！树懒狠狠夸你(๑>ᴗ<๑)"
+];
+
+// DOM元素
+const ruleOverlay = document.getElementById('ruleOverlay');
+const questionPopup = document.getElementById('questionPopup');
+const quotePopup = document.getElementById('quotePopup');
+const qTitle = document.getElementById('qTitle');
+const qOptions = document.getElementById('qOptions');
+const quoteText = document.getElementById('quoteText');
+const levelText = document.getElementById('levelText');
+const gameTip = document.getElementById('gameTip');
+const symbolPanel = document.getElementById('symbolPanel');
+const flashSymbol = document.getElementById('flashSymbol');
+const lamp1 = document.getElementById('lamp1');
+const lamp2 = document.getElementById('lamp2');
+const lamp3 = document.getElementById('lamp3');
+const lamp4 = document.getElementById('lamp4');
+
+// 关闭初始规则弹窗
+function closeRule() {
+    ruleOverlay.style.display = 'none';
+    startRound();
+}
+
+// 关闭语录弹窗
+function closeQuote() {
+    quotePopup.style.display = 'none';
+    nextSmallLevel();
+}
+
+// 更新页面等级文字
+function updateLevelUI() {
+    levelText.innerText = `大级：${gameData.bigLevel}｜小关：${gameData.smallLevel}`;
+}
+
+// 更新生命显示
+function updateLifeUI() {
+    const hearts = [document.getElementById('h1'), document.getElementById('h2'), document.getElementById('h3')];
+    hearts.forEach((h, idx) => {
+        if(idx < gameData.lives) h.classList.remove('lost');
+        else h.classList.add('lost');
+    })
+}
+
+// 更新壁灯亮度（随大级变化）
+function updateLamp() {
+    const lamps = [lamp1, lamp2, lamp3, lamp4];
+    const lampCount = Math.min(gameData.bigLevel,4);
+    lamps.forEach((lamp,idx)=>{
+        if(idx < lampCount) lamp.classList.remove('off');
+        else lamp.classList.add('off');
+    })
+}
+
+// 随机取数组元素
+function randomPick(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// 开始一轮游戏
+async function startRound() {
+    gameData.isPlaying = true;
+    gameData.playerClickOrder = [];
+    symbolPanel.innerHTML = '';
+    gameTip.innerText = "仔细观察符号...";
+
+    // 本回合真实符号数量：随大级增加
+    const realCount = 2 + Math.floor(gameData.bigLevel / 2);
+    // 幻觉数量
+    const illusionCount = Math.floor(gameData.bigLevel / 2);
+
+    gameData.realSymbols = [];
+    gameData.illusionSymbols = [];
+    // 随机选真实符号
+    for(let i=0;i<realCount;i++){
+        let s = randomPick(symbolList);
+        while(gameData.realSymbols.includes(s)) s = randomPick(symbolList);
+        gameData.realSymbols.push(s);
+    }
+    // 幻觉符号
+    for(let i=0;i<illusionCount;i++){
+        let s = randomPick(symbolList);
+        while(gameData.realSymbols.includes(s) || gameData.illusionSymbols.includes(s)) s = randomPick(symbolList);
+        gameData.illusionSymbols.push(s);
+    }
+      // 混合真实符号和幻觉符号，打乱播放顺序
+    let sequence = [];
+    gameData.realSymbols.forEach(s=> sequence.push({sym:s,type:"real"}));
+    gameData.illusionSymbols.forEach(s=> sequence.push({sym:s,type:"illusion"}));
+    // 打乱播放序列
+    sequence.sort(()=> Math.random()-0.5);
+
+    // 依次播放所有符号
+    for(let item of sequence){
+        flashSymbol.innerText = item.sym;
+        flashSymbol.classList.remove('illusion');
+        flashSymbol.style.opacity = "1";
+        if(item.type === "illusion"){
+            flashSymbol.classList.add('illusion');
+            await sleep(100); //幻觉只闪0.1秒
+        }else{
+            await sleep(700); //真实符号停留0.7秒
+        }
+        flashSymbol.style.opacity = "0";
+        await sleep(150);
+    }
+
+    gameTip.innerText = "按出现顺序，点击真实符号！不要点幻觉！";
+    gameData.isPlaying = false;
+
+    // 把所有真实+幻觉符号全部放到面板，打乱
+    let allSym = [...gameData.realSymbols, ...gameData.illusionSymbols];
+    allSym.sort(()=> Math.random()-0.5);
+    allSym.forEach(sym=>{
+        const btn = document.createElement('button');
+        btn.className = "symbol-btn";
+        btn.innerText = sym;
+        btn.onclick = ()=>clickSymbol(sym);
+        symbolPanel.appendChild(btn);
+    })
+}
+
+// 延时工具
+function sleep(ms){
+    return new Promise(resolve=>setTimeout(resolve,ms));
+}
+
+// 点击符号
+function clickSymbol(sym){
+    if(gameData.isPlaying) return;
+    // 如果点到幻觉，直接失败
+    if(gameData.illusionSymbols.includes(sym)){
+        gameTip.innerText = "❌ 你点到幻觉符号了！";
+        loseLife();
+        return;
+    }
+    gameData.playerClickOrder.push(sym);
+    // 判断当前点击的符号是否等于真实序列的对应位置
+    const idx = gameData.playerClickOrder.length -1;
+    if(gameData.realSymbols[idx] !== sym){
+        gameTip.innerText = "❌ 顺序错啦！";
+        loseLife();
+        return;
+    }
+    // 标记按钮正确
+    const btns = symbolPanel.querySelectorAll('.symbol-btn');
+    btns.forEach(b=>{if(b.innerText === sym) b.classList.add('correct');})
+    gameTip.innerText = `✅ 选对了 ${idx+1}/${gameData.realSymbols.length}`;
+
+    // 判断全部选完
+    if(gameData.playerClickOrder.length === gameData.realSymbols.length){
+        gameTip.innerText = "🎉 本小关通关！";
+        setTimeout(nextSmallLevel, 800);
+    }
+}
+
+// 失去生命
+function loseLife(){
+    gameData.lives -=1;
+    updateLifeUI();
+    // 生命耗尽，退回当前大级第1小关
+    if(gameData.lives <= 0){
+        gameTip.innerText = "💔 生命耗尽！退回当前大级第1小关";
+        gameData.smallLevel = 1;
+        gameData.lives = 3;
+        updateLevelUI();
+        updateLifeUI();
+        setTimeout(startRound, 1200);
+    }else{
+        setTimeout(startRound,1000);
+    }
+}
+
+// 下一小关
+function nextSmallLevel(){
+    gameData.smallLevel +=1;
+    // 一个大级有3小关
+    if(gameData.smallLevel >3){
+        // 大关卡全部通关，触发50%彩蛋
+        gameData.smallLevel =1;
+        gameData.bigLevel +=1;
+        updateLamp();
+        updateLevelUI();
+        // 50%概率问答，50%暖心语录
+        if(Math.random() >0.5){
+            showQuestion();
+        }else{
+            showQuote();
+        }
+    }else{
+        updateLevelUI();
+        setTimeout(startRound,600);
+    }
+}
+  // 弹出问答题
+function showQuestion(){
+    const q = randomPick(questionPool);
+    qTitle.innerText = q.q;
+    qOptions.innerHTML = "";
+    q. options.forEach((opt, idx)=>{
+        const btn = document.createElement("button");
+        btn.className = "q-option";
+        btn.innerText = opt;
+        btn.onclick = ()=>{
+            if(idx === q.correct){
+                gameTip.innerText = "✅回答正确！获得半条额外生命！";
+                gameData.extraLife += 0.5;
+                // 满1条就补生命
+                if(gameData.extraLife >=1){
+                    gameData.extraLife -=1;
+                    if(gameData.lives <3) gameData.lives +=1;
+                    updateLifeUI();
+                }
+            }else{
+                gameTip.innerText = "❌答错咯，扣1条生命";
+                loseLife();
+            }
+            questionPopup.style.display = "none";
+            setTimeout(startRound, 800);
+        }
+        qOptions.appendChild(btn);
+    })
+    questionPopup.style.display = "flex";
+}
+
+// 弹出暖心语录
+function showQuote(){
+    const text = randomPick(quotePool);
+    quoteText.innerText = text;
+    quotePopup.style.display = "flex";
+}
+
+// 初始化
+updateLevelUI();
+updateLifeUI();
+updateLamp();
+</script>
+</body>
+</html>
